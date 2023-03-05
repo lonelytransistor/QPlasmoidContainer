@@ -153,6 +153,15 @@ ACCModel* AppletContainer::getAppletConfigModel() {
 
     return qobject_cast<ACCModel*>(m_configModel);
 }
+QQmlContext* AppletContainer::getRootContext() {
+    QQmlContext* context = qmlContext(m_appletQuick);
+    if (!context)
+        return nullptr;
+    QQmlEngine* engine = context->engine();
+    if (!engine)
+        return nullptr;
+    return engine->rootContext();
+}
 bool AppletContainer::setAppletInternal(QString plasmoid) {
     destroyApplet();
 

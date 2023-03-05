@@ -7,6 +7,8 @@
 #include <QApplication>
 #include <QOpenGLFunctions>
 #include <QOpenGLFramebufferObjectFormat>
+#include <QQmlIncubationController>
+#include <QQmlEngine>
 #include <QFile>
 #include <QDebug>
 
@@ -22,28 +24,24 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-#include "Globals.h"
+#include "Applet"
 
-struct UUID {
-    UUID& operator=(const UUID& r) {
-        memcpy(uuid, r.uuid, sizeof(uuid));
-        return *this;
-    }
-    bool operator==(const UUID& l, const UUID& r) {
-        return memcmp(l, r, sizeof(uuid)) == 0;
-    }
-    char uuid[36];
-
-    QString toString() {
-        QString::fromLocal8Bit(uuid);
-    }
+static void _shm_close(int fd) {
+    close(fd);
+}
+class QAppletShmIncubationController : public QObject, public QQmlIncubationController {
+public:
+    void setApplet(QString p_applet) { m_applet = p_applet; }
+    QString getApplet() { return m_applet; }
+private:
+    QString m_applet;
 };
 
-class AppletStreamer: public QQuickView {
+class QAppletShmServer: public QQuickView {
     Q_OBJECT
 public:
-    AppletStreamer(UUID uuid, QWindow* parent = nullptr);
-    ~AppletStreamer();
+    QAppletShmServer(QString shmPath, QString appletName, QString sUuid, QWindow* parent = nullptr);
+    ~QAppletShmServer();
 
     void reload();
 
@@ -52,9 +50,15 @@ public:
     void frameSwapped();
 
     Q_SIGNAL void resized(int width, int height);
-    Q_SIGNAL void frameReady();
-    Q_SLOT void resizeBuffer(int size);
-    Q_SLOT void newEvent(QEvent* e);
+    Q_SIGNAL void updated();
+    void resizeBuffer(int size);
+    QWindow* getWindow() {
+        return qobject_cast<QWindow*>(this);
+    }
+
+    void shm_close(int fd) {
+        _shm_close(fd);
+    }
 private:
     void releaseFrameBuffer();
 
@@ -68,7 +72,10 @@ private:
     int m_shmFd = 0;
     int m_bufferSize = 0;
 
+    QAppletShmIncubationController* m_incubator = nullptr;
+    QQmlEngine* m_engine = nullptr;
     QString m_shmPath;
     GLubyte* m_pixelBuffer = nullptr;
     QOpenGLFramebufferObject* m_frameBuffer = nullptr;
+    AppletContainer* m_applet = nullptr;
 };

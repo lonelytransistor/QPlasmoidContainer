@@ -1,6 +1,9 @@
-#include "AppletContainer"
-#include "AppletReceiver"
-#include "AppletStreamer"
+#pragma once
+
+#include "AppletContainer.h"
+#include "AppletConfigContainer.h"
+#include "QAppletShm.h"
+#include "Globals.h"
 
 class QApplet {
 public:
@@ -10,7 +13,7 @@ public:
         qmlRegisterType<ACCModel>("org.kde.plasma.configuration", 2, 0, "ConfigModel");
         qmlRegisterType<ACCCategory>("org.kde.plasma.configuration", 2, 0, "ConfigCategory");
 
-        qmlRegisterType<AppletReceiver>("AppletReceiver", 1, 0, "AppletReceiver");
+        qmlRegisterType<QAppletShm>("AppletShm", 1, 0, "AppletShm");
     }
 };
 

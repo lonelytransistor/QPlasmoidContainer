@@ -39,38 +39,59 @@
 #include <errno.h>
 #include <string.h>
 
-class AppletReceiverPrivate: public QThread {
+#include "Globals.h"
+
+class QAppletShm;
+static void _shm_close(int fd) {
+    close(fd);
+}
+
+//
+// Server:
+//
+class QAppletShmPrivate: public QThread {
     Q_OBJECT
+
 public:
-    AppletReceiverPrivate(QObject* parent = nullptr): QThread(parent) {
+    QAppletShmPrivate(QString p_serverName, QObject* parent = nullptr);
+    ~QAppletShmPrivate() {
+        if (m_socket) {
+            m_socket->close();
+            delete m_socket;
+        }
     }
-    ~AppletReceiverPrivate() {
-    }
-    void run() override;
+    void run();
 
-Q_SIGNALS:
-    void resizeReceived(int width, int height, const uchar* pixelBuffer);
-    void updateReceived();
-    void clearReceived();
+    Q_SIGNAL void connected();
+    Q_SIGNAL void disconnected();
+    Q_SIGNAL void appletCreated(QString shm);
+    Q_SIGNAL void appletResized(int w, int h);
+    Q_SIGNAL void appletWindow(int ix);
+    Q_SIGNAL void appletNewWindow(int ix);
+    Q_SIGNAL void appletEvent(QEvent* ev);
+    Q_SIGNAL void appletUpdated();
 
+    void serverWrite(QSPacket* data);
+    void serverUpdate();
 private:
-    void readLoop();
+    void serverOpen();
+    void serverClose();
+    void serverRead();
 
-    const uchar* m_pixelBuffer;
-    long m_pixelBufferSize = 0;
-    int m_height = 0;
-    int m_width = 0;
-
-    FILE* m_pipeFd = nullptr;
-    int m_shmFd = 0;
+    UUID m_uuid;
+    QString m_serverName;
+    QLocalSocket* m_socket = nullptr;
+    QSPacketReader m_packetReader;
+    QSPacket* m_packet = nullptr;
 };
+//
 
-class AppletReceiver;
-class AppletReceiverTexturePrivate: public QSGDynamicTexture {
+
+class QAppletShmTexturePrivate: public QSGDynamicTexture {
     Q_OBJECT
 
 public:
-    AppletReceiverTexturePrivate(AppletReceiver* p_parent);
+    QAppletShmTexturePrivate(QAppletShm* p_parent);
     void bind();
     bool updateTexture() override;
     bool hasAlphaChannel() const override {
@@ -87,20 +108,18 @@ public:
     }
 
 private:
-    std::atomic<bool>* m_resizing;
+    std::atomic<bool>* m_valid;
 
     int m_height = 0;
     int m_width = 0;
     int m_pixelBufferSize = 0;
-
     const uchar* m_pixelBuffer = nullptr;
     GLuint m_texture = 0;
 
-    AppletReceiver* m_parent = nullptr;
-    QString m_test;
+    QAppletShm* m_parent = nullptr;
 };
 
-class AppletReceiver: public QQuickItem {
+class QAppletShm: public QQuickItem {
     Q_OBJECT
 
     Q_PROPERTY(QString uuid READ getUuid WRITE setUuid NOTIFY uuidChanged)
@@ -108,14 +127,14 @@ class AppletReceiver: public QQuickItem {
     Q_PROPERTY(bool valid READ getValid NOTIFY validChanged)
 
 public:
-    AppletReceiver(QQuickItem* parent = nullptr);
-    ~AppletReceiver() {}
+    QAppletShm(QQuickItem* parent = nullptr);
+    ~QAppletShm() {}
 
-    QString getUuid();
-    int getWindowId();
-    bool getValid();
-    void setUuid(QString uuid);
-    void setWindowId(int id);
+    QString getUuid() { return m_uuid.toString(); }
+    int getWindowId() { return m_windowId; }
+    bool getValid() { return m_uuid && m_windowId>0; }
+    void setUuid(QString uuid) { m_uuid = uuid; }
+    void setWindowId(int id) { m_windowId = id; }
 
     Q_SIGNAL void windowIdChanged();
     Q_SIGNAL void uuidChanged();
@@ -129,9 +148,14 @@ protected:
     virtual QSGNode* updatePaintNode(QSGNode* node, QQuickItem::UpdatePaintNodeData*) override;
 
 private:
-    std::atomic<bool> m_resizing;
+    void shm_close() {
+        if (m_shmFd) {
+            _shm_close(m_shmFd);
+        }
+    }
+    std::atomic<bool> m_valid;
 
-    UUID m_uuid = "";
+    UUID m_uuid;
     int m_windowId = 0;
 
     int m_height = 0;
@@ -139,8 +163,8 @@ private:
     int m_pixelBufferSize = 0;
 
     const uchar* m_pixelBuffer = nullptr;
-    AppletReceiverTexturePrivate* m_texture = nullptr;
-    AppletReceiverPrivate* m_cmdReader = nullptr;
+    QAppletShmTexturePrivate* m_texture = nullptr;
+    QAppletShmPrivate* m_cmdReader = nullptr;
 
-    friend class AppletReceiverTexturePrivate;
+    friend class QAppletShmTexturePrivate;
 };

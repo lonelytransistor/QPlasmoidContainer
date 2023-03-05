@@ -1,4 +1,5 @@
 #pragma once
+
 #include <QQmlEngine>
 #include <QQmlContext>
 #include <QQuickItem>
@@ -49,6 +50,7 @@ public:
     KDeclarative::ConfigPropertyMap* getConfig();
     QQuickItem* getAppletQuick() { return m_appletQuick; }
     QColor getBackgroundColor() { return m_backgroundColor; }
+    QQmlContext* getRootContext();
 private:
     void destroyApplet();
     bool setAppletInternal(QString plasmoid);

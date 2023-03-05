@@ -1,4 +1,5 @@
 #pragma once
+
 #include <QQuickPaintedItem>
 #include <QQmlProperty>
 #include <QQuickItem>

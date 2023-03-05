@@ -1,6 +1,6 @@
 #pragma once
 
-#define MAX(X,Y) X>Y ? X:Y
+#define MAX(X,Y) (X)>(Y) ? (X):(Y)
 #define MAX2(p0,p1) MAX(p0,p1)
 #define MAX3(p0,p1,p3) MAX(MAX2(p0,p1),p3)
 #define MAX4(p0,p1,p2,p4) MAX(MAX3(p0,p1,p2),p4)
@@ -57,3 +57,4 @@
 #define __MAXN(a,b) a ## b
 #define _MAXN(a,b) __MAXN(a,b)
 #define MAXN(...) _MAXN(MAX, COUNT(__VA_ARGS__))(__VA_ARGS__)
+

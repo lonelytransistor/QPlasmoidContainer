@@ -79,7 +79,7 @@ static const uint qt_meta_data_AppletContainer[] = {
 
  // properties: name, type, flags
        6, QMetaType::QString, 0x00495103,
-       7, QMetaType::QColor, 0x00495103,
+       7, QMetaType::QColor, 0x00495107,
 
  // properties: notify_signal_id
        0,
@@ -137,6 +137,12 @@ void AppletContainer::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int 
         default: break;
         }
     } else if (_c == QMetaObject::ResetProperty) {
+        AppletContainer *_t = static_cast<AppletContainer *>(_o);
+        (void)_t;
+        switch (_id) {
+        case 1: _t->resetBackground(); break;
+        default: break;
+        }
     }
 #endif // QT_NO_PROPERTIES
     (void)_a;

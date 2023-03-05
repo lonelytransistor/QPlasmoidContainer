@@ -1,35 +1,60 @@
-#include "../Applet"
-//#include "Server.h"
+#include "main.h"
 
-AppletStreamer* view;
-int main(int p_argc, char *p_argv[]) {
-    char** argv = new char*[p_argc];
-    argv[0] = p_argv[0];
-    argv[1] = (char*)"-platform";
-    argv[2] = (char*)"offscreen";
-    for (int ix=1; ix<p_argc; ix++) {
-        argv[2+ix] = p_argv[ix];
-    }
-    int argc = p_argc + 2;
+//
+// Main application
+//
+void QSApplet::appletCreate(UUID uuid, QString appletName) {
+    QAppletShmServer* applet = new QAppletShmServer(QString(STREAMER_SERVER_NAME) + ":" + appletName + ":" + uuid.toString(), appletName, uuid.toString());
 
-    QApplication::setStyle("breeze-dark");
-    QApplication a(argc, argv);
-    QApplet::registerTypes();
+    connect(applet, &QAppletShmServer::resized, this, [this,uuid](int w, int h){ appletResize(uuid, w, h); });
+    connect(applet, &QAppletShmServer::updated, this, [this,uuid](){ appletUpdate(uuid); });
 
-    view = new AppletStreamer();
-    view->setSource(QUrl::fromLocalFile("application.qml"));
-    view->show();
+    applet->show();
+    m_applets.insert(uuid, applet);
+}
+void QSApplet::appletDestroy(UUID uuid) {
+    QAppletShmServer* applet = m_applets[uuid];
+    m_applets.remove(uuid);
 
-    // Why does it lose these on -platform offscreen? I have no idea.
-    /*QStringList list;
-    list.push_back(QDir::homePath() + QString("/.local/share/icons"));
-    list.push_back(QString("/usr/share/icons"));
-    for (QString path : QIcon::themeSearchPaths()) {
-        list.push_back(path);
-    }
-    QIcon::setThemeSearchPaths(list);
-    QIcon::setThemeName(QString("breeze-dark"));
-    qInfo() << QIcon::themeSearchPaths();*/
+    applet->hide();
+    applet->disconnect();
+    applet->destroy();
 
-    return a.exec();
+    delete applet;
+}
+void QSApplet::appletBuffer(UUID uuid, int size) {
+    QAppletShmServer* applet = m_applets[uuid];
+    applet->resizeBuffer(size);
+}
+void QSApplet::appletWindow(UUID uuid, int ix) {
+    Q_UNUSED(uuid);
+    Q_UNUSED(ix);
+    //m_applets[uuid]->setWindow(ix);
+}
+void QSApplet::appletWindows(UUID uuid) {
+    Q_UNUSED(uuid);
+    //return m_applets[uuid]->getWindows();
+}
+void QSApplet::appletEvent(UUID uuid, QEvent* event) {
+    QCoreApplication::postEvent(m_applets[uuid]->getWindow(), event);
+}
+
+void QSApplet::appletUpdate(UUID uuid) {
+    QMetaObject::invokeMethod(m_server, "clientUpdate", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(UUID, uuid));
+}
+void QSApplet::appletResize(UUID uuid, int w, int h) {
+    memcpy(&m_buffer.magicNumber, STREAMER_MAGIC_NUMBER, sizeof(STREAMER_MAGIC_NUMBER));
+    uuid.toChar(m_buffer.uuid);
+    m_buffer.cmd = CMD_RESIZE;
+    int* buff = reinterpret_cast<int*>(m_buffer.data);
+    buff[0] = w;
+    buff[1] = h;
+    QMetaObject::invokeMethod(m_server, "clientWrite", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(QSPacket*, &m_buffer));
+}
+//
+
+int main(int argc, char *argv[]) {
+    QSApplet app(argc, argv);
+
+    return app.exec();
 }
